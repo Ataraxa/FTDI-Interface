@@ -5,6 +5,10 @@
 #include "../include/ftd2xx.h"
 #include "../include/libmpsse_spi.h"
 
+// Useful Macros
+#define APP_CHECK_STATUS(exp) {if(exp!=FT_OK){printf("%s:%d:%s(): status(0x%x) \
+!= FT_OK\n",__FILE__, __LINE__, __FUNCTION__,exp);exit(1);}else{;}};
+
 void InitialiseCommunication(FT_STATUS& status, FT_HANDLE& ftHandle)
 {
     static FT_DEVICE_LIST_INFO_NODE *devInfo;
@@ -25,12 +29,19 @@ void InitialiseCommunication(FT_STATUS& status, FT_HANDLE& ftHandle)
     status = FT_Open(deviceIndex, &ftHandle);
 }
 
-void InitialiseSPI(FT_STATUS& ftStatus, FT_HANDLE& ftHandle)
+void InitialiseSPI(FT_STATUS& ftStatus, FT_HANDLE& ftHandle, FT_HANDLE& spiHandle)
 {
     DWORD numChanSPI;
 
     SPI_GetNumChannels(&numChanSPI);
     printf("SPI channels: %d", numChanSPI);
+
+    ftStatus = SPI_OpenChannel(0, &spiHandle);
+    if (ftStatus != FT_OK)
+    {
+        printf("Error while opening SPI channel...");
+    }
+
 }
 
 int main(int argc, CHAR* argv[])
@@ -44,28 +55,21 @@ int main(int argc, CHAR* argv[])
     FT_STATUS ftStatus;
     FT_HANDLE ftHandle;
 
+    ChannelConfig spiChanCfg;
+
     BYTE data;
-
-    // To make FT_READ and FT_WRITE functions work
-    // DWORD dwNumBytesToRead = 0;
-    // DWORD dwNumBytesRead = 0;
-    // DWORD dwNumBytesToSend = 0;
-    // DWORD dwNumBytesSent = 0;
-
-    // BYTE inputBuffer[8];
-    // BYTE outputBuffer[8];
-
 
     // MAIN ------------------------------------------------
     printf("Starting the program...");
 
     // Device Initialisation -----------
-    InitialiseCommunication(ftStatus, ftHandle);
-    if (ftStatus != FT_OK)
-    {
-        printf("Open failed");
-        return 1;
-    }
+    
+    // InitialiseCommunication(ftStatus, ftHandle);
+    // if (ftStatus != FT_OK)
+    // {
+    //     printf("Open failed");
+    //     return 1;
+    // }
 
     // Initialize MPSSE
     Init_libMPSSE();
@@ -74,10 +78,17 @@ int main(int argc, CHAR* argv[])
     // FT_SetBitMode(ftHandle, 0x0, 0x02); // MPSSE mode
     // --------------------------------------------------------
 
-    InitialiseSPI(ftStatus, ftHandle);
+    // InitialiseSPI(ftStatus, ftHandle, spiHandle);
+    ftStatus = SPI_OpenChannel(0, &ftHandle);
+    APP_CHECK_STATUS(ftStatus);
+
+    ftStatus = SPI_InitChannel(ftHandle, &spiCHanCfg);
+    APP_CHECK_STATUS(ftStatus);
+
+
 
     // Read from FTDI device
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 20; i++)
     {
         ftStatus = FT_WriteGPIO(ftHandle, 0x08, 0x00);
         if (ftStatus != FT_OK)
@@ -85,7 +96,7 @@ int main(int argc, CHAR* argv[])
             printf("Failed...");
             return 1;
         }
-        sleep_for(200ms);
+        sleep_for(500ms);
 
         ftStatus = FT_WriteGPIO(ftHandle, 0x08, 0x08);
         if (ftStatus != FT_OK)
@@ -93,7 +104,7 @@ int main(int argc, CHAR* argv[])
             printf("Failed...");
             return 1;
         }
-        sleep_for(200ms); 
+        sleep_for(500ms); 
     }
 
     

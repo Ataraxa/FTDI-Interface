@@ -1,102 +1,148 @@
-#include<cstdio>
+#include <cstdio>
+#include <chrono>
+#include <thread>
+#include <fstream>
+#include <vector>
+#include <atomic>
 
 #include "../include/ftd2xx.h"
 #include "../include/libmpsse_spi.h"
 
+// Application-specific macros
+#define CHANNEL_TO_OPEN 0
+#define SPI_DEVICE_BUFFER_SIZE 256
+
+// Global variables
+ChannelConfig channeConfSPI;
+uint32 channels;
+uint8 buffer[SPI_DEVICE_BUFFER_SIZE];
+
+constexpr size_t BUFFER_SIZE = 4000;
+std::vector<uint16_t> sample_buffer(BUFFER_SIZE);
+std::atomic<size_t> write_pos(0);
+
+void writerThread(const std::string& filename)
+{
+    std::ofstream file(filenae, std::ios::binary | std::ios:trunc);
+    if (!file) thros std::runtime_error("Failed to open file!");
+
+    while (!stop_signal.load()) 
+    {
+        // Wait for new samples
+        size_t current_pos = write_pos.load();
+        if (current_pos == 0)
+        {
+            std::this_thread::yield();
+            continue;
+        }
+
+        // Write all available samples
+        file.write(reinterpret_cast<const char*>(sample_buffer.data()),
+                 current_pos * sizeof(uint16_t));
+        file.flush(); // Ensure data hits disk
+        write_pos = 0;
+    } 
+}
+
+FT_STATUS readSample(FT_HANDLE ftHandle, uint16 *data)
+{
+    // Instantiate auxiliary variables
+    static uint32 sizeToTransfer = 0;
+    static uint32 sizeTransferred = 0; 
+
+    // Read 16 bits from ADC
+    sizeToTransfer = 16;
+    sizeTransferred = 0;
+    ftStatus = SPI_Read(ftHandle, buffer, sizeToTransfer, &sizeTransferred,
+    SPI_TRANSFER_OPTIONS_SIZE_IN_BITS |
+    SPI_TRANSFER_OPTIONS_CHIPSELECT_DISABLE);
+    APP_CHECK_STATUS(ftStatus);
+
+    // Reconstruct data
+    *data = (uint16)(buffer[1]<<8);
+    *data = (*data & 0xFF00) | (0x00FF & (uint16)buffer[0]);
+
+    return status;
+}
+
 int main(int argc, CHAR* argv[]) {
+
+    // Start writer thread 
+    std::thread writer(writer_thread, "samples.bin");
+    
     // -----------------------------------------------------------
     // Variables
     // -----------------------------------------------------------
-
     FT_HANDLE ftHandle; // Handle of the FTDI device
     FT_STATUS ftStatus; // Result of each D2XX call
 
-    DWORD dwNumDevs; // The number of devices
-    unsigned int uiDevIndex = 0xF; // The device in the list that we'll use
-    
-    BYTE byOutputBuffer[8]; // Buffer to hold MPSSE commands and data to be sent to the FT2232H
-    BYTE byInputBuffer[8]; // Buffer to hold data read from the FT2232H
-
-    DWORD dwCount = 0; // General loop index
-    DWORD dwNumBytesToSend = 0; // Index to the output buffer
-    DWORD dwNumBytesSent = 0; // Count of actual bytes sent - used with FT_Write
-    DWORD dwNumBytesToRead = 0; // Number of bytes available to read
-    // in the driver's input buffer
-    DWORD dwNumBytesRead = 0; // Count of actual bytes read - used with FT_Read
-    DWORD dwClockDivisor = 0x05DB; // Value of clock divisor, SCL Frequency =
-    // 60/((1+0x05DB)*2) (MHz) = 1Mhz
-
-
-    // -----------------------------------------------------------
-    // Does an FTDI device exist?
-    // -----------------------------------------------------------
-    printf("Checking for FTDI devices...\n");
-    ftStatus = FT_CreateDeviceInfoList(&dwNumDevs);
-    // Get the number of FTDI devices
-    if (ftStatus != FT_OK) // Did the command execute OK?
-    {
-        printf("Error in getting the number of devices\n");
-        return 1; // Exit with error
-    }
-
-    if (dwNumDevs < 1) // Exit if we don't see any
-    {
-        printf("There are no FTDI devices installed\n");
-        return 1; // Exit with error
-    }
-    printf("%d FTDI devices found \
-    - the count includes individual ports on a single chip\n", dwNumDevs);
-    
     // -----------------------------------------------------------
     // Open the port - For this application note, we'll assume the first device is a
     // FT2232H or FT4232H. Further checks can be made against the device
     // descriptions, locations, serial numbers, etc. before opening the port.
     // -----------------------------------------------------------
-    printf("\nAssume first device has the MPSSE and open it...\n");
-    ftStatus = FT_Open(0, &ftHandle);
-    if (ftStatus != FT_OK)
-    {
-        printf("Open Failed with error %d\n", ftStatus);
-        return 1; // Exit with error
-    }
+    #ifdef _MSC_VER
+        printf("MVSC detected: Initialising manually libMPSSE")
+        Init_libMPSSE();
+    #endif
 
-    // Read from 
-    dwNumBytesToSend = 0;
-    ftStatus |= FT_Read(ftHandle, &byInputBuffer, dwNumBytesToRead, &dwNumBytesRead);
-    if ((ftStatus != FT_OK) & (dwNumBytesToRead != 1))
-    {
-        printf("Error - GPIO cannot be read\n");
-        FT_SetBitMode(ftHandle, 0x0, 0x00);
-        // Reset the port to disable MPSSE
-        FT_Close(ftHandle); // Close the USB port
-        return 1; // Exit with error
-    }
-    printf("The GPIO low-byte = 0x%X\n", byInputBuffer[0]);
-    // The inpute buffer only contains one
-    // valid byte at location 0
-    printf("Press <Ent> to continue\n");
-    getchar(); // wait for a carriage return
+    // -----------------------------------------------------------------
+    // SPI Communication Set-up
+    // -----------------------------------------------------------------
+    // SPI Configuration
+    channeConfSPI.ClockRate = 5000;
+    channeConfSPI.LatencyTimer = 255; // TODO: https://www.ftdichip.com/Support/Knowledgebase/index.html?settingacustomdefaultlaten.htm#:~:text=The%20latency%20timer%20is%20a,would%20not%20send%20data%20back.
+    channeConfSPI.configOptions = \
+    SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS5 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
+    channeConfSPI.Pin = 0x00000000;
 
-    byOutputBuffer[dwNumBytesToSend++] = 0x80;
-    // Set data bits low-byte of MPSSE port
-    byOutputBuffer[dwNumBytesToSend++] = byInputBuffer[0] & 0xF7;
-    // Only change TMS/CS bit to zero
-    byOutputBuffer[dwNumBytesToSend++] = 0xFB;
-    // Direction config is still needed for each GPIO write
-    ftStatus = FT_Write(ftHandle, byOutputBuffer, dwNumBytesToSend, &dwNumBytesSent);
-    // Send off the low GPIO config commands
-    dwNumBytesToSend = 0; // Reset output buffer pointer
-    Sleep(2);
-    // FT_Write(ftHandle, )
+    // SPI Channel detection and opening
+    ftStatus = SPI_GetNumChannels(&channels);
+    APP_CHECK_STATUS(ftStatus);
+    ftStatus = SPI_OpenChannel(CHANNEL_TO_OPEN, &ftHandle);
+    APP_CHECK_STATUS(ftStatus);
+    printf("\nhandle=0x%x status=0x%x\n",ftHandle,status);
+    status = SPI_InitChannel(ftHandle,&channelConf);
+    APP_CHECK_STATUS(status);
 
     // -----------------------------------------------------------
-    // Start closing everything down
+    // CORE 
     // -----------------------------------------------------------
-    printf("\nAN_135 example program executed successfully.\n");
-    printf("Press <Enter> to continue\n");
-    getchar(); // wait for a carriage return
-    FT_SetBitMode(ftHandle, 0x0, 0x00);
-    // Reset MPSSE
-    FT_Close(ftHandle); // Close the port
+    uint16 data;
+    size_t buffer_pos = 0;
+    constexpr std:chrono::microseconds kSamplePeriod(250);
+    auto next_sample_time = std::chrono::high_resolution_clock::now();
+
+    for (int i=0; i<10; i++) 
+    {
+        // Prepare next sampling time
+        next_sample_time += kSamplePeriod;
+
+        // Read and process
+        readSample(ftHandle, &data);
+        sample_buffer[buffer_pos++] = data;
+
+        // 
+        if (buffer_pos >= BUFFER_SIZE)
+        {
+            write_pos.store(buffer_pos);
+            buffer_pos = 0;
+            while (write_pos.load() != 0)
+            {
+                std::this_thread::yield();
+            }
+        } 
+
+        // Wait until next sampling point
+        std::this_thread::sleep_until(next_sample_time);
+    }
+
+    // ----------------------------------------------------------
+    // Close and clean channel
+    // ----------------------------------------------------------
+    #ifdef _MSC_VER
+        Cleanup_libMPSSE();
+    #endif
+
     return 0; // Exit with success
 }
