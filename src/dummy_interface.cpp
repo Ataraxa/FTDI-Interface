@@ -2,54 +2,49 @@
 #include <chrono>
 #include <thread>
 #include <fstream>
-#include <iostream>
 #include <vector>
-#include <atomic>
+#include <iostream>
 
 #include "../include/ftd2xx.h"
 #include "../include/libmpsse_spi.h"
+
+using namespace std::chrono;
 
 // Application-specific macros
 #define CHANNEL_TO_OPEN 0
 #define SPI_DEVICE_BUFFER_SIZE 256
 
-// Useful macros 
-#define APP_CHECK_STATUS(exp) {if(exp!=FT_OK){printf("%s:%d:%s(): status(0x%x) \
-!= FT_OK\n",__FILE__, __LINE__, __FUNCTION__,exp);exit(1);}else{;}};
-
 // Global variables
-ChannelConfig channelConfSPI;
-DWORD channels;
+ChannelConfig channeConfSPI;
+uint32_t channels;
 uint8_t buffer[SPI_DEVICE_BUFFER_SIZE];
 
-constexpr size_t BUFFER_SIZE = 4000;
+int BUFFER_SIZE = 4000;
 std::vector<uint16_t> sample_buffer(BUFFER_SIZE);
 
-FT_STATUS readSample(FT_HANDLE ftHandle, uint16_t *data)
+void readDummySample(FT_HANDLE ftHandle, uint16_t *data)
 {
     // Instantiate auxiliary variables
     static uint32_t sizeToTransfer = 0;
-    static DWORD sizeTransferred = 0; 
-    static FT_STATUS fcStatus;
+    static uint32_t sizeTransferred = 0; 
+
     // Read 16 bits from ADC
     sizeToTransfer = 16;
     sizeTransferred = 0;
-    fcStatus = SPI_Read(ftHandle, buffer, sizeToTransfer, &sizeTransferred,
-    SPI_TRANSFER_OPTIONS_SIZE_IN_BITS |
-    SPI_TRANSFER_OPTIONS_CHIPSELECT_DISABLE);
-    APP_CHECK_STATUS(fcStatus);
+    buffer[0] = 0x01;
+    buffer[1] = 0xFE;
+    // buffer[0] = rand() % 256;
+    // buffer[1] = rand() % 256;
 
     // Reconstruct data
     *data = (uint16_t)(buffer[1]<<8);
     *data = (*data & 0xFF00) | (0x00FF & (uint16_t)buffer[0]);
-
-    return fcStatus;
 }
 
 int main(int argc, CHAR* argv[]) {
 
     // Start writer thread 
-    std::ofstream storefile("../data/recordings.bin", std::ios::binary | std::ios::app);
+    std::ofstream storefile("recordings.bin", std::ios::binary | std::ios::app);
     
     // -----------------------------------------------------------
     // Variables
@@ -57,55 +52,48 @@ int main(int argc, CHAR* argv[]) {
     FT_HANDLE ftHandle; // Handle of the FTDI device
     FT_STATUS ftStatus; // Result of each D2XX call
 
-    // -----------------------------------------------------------
-    // Open the port - For this application note, we'll assume the first device is a
-    // FT2232H or FT4232H. Further checks can be made against the device
-    // descriptions, locations, serial numbers, etc. before opening the port.
-    // -----------------------------------------------------------
-    #ifdef _MSC_VER
-        printf("MVSC detected: Initialising manually libMPSSE")
-        Init_libMPSSE();
-    #endif
-
     // -----------------------------------------------------------------
     // SPI Communication Set-up
     // -----------------------------------------------------------------
     // SPI Configuration
-    channelConfSPI.ClockRate = 5000;
-    channelConfSPI.LatencyTimer = 255; // TODO: https://www.ftdichip.com/Support/Knowledgebase/index.html?settingacustomdefaultlaten.htm#:~:text=The%20latency%20timer%20is%20a,would%20not%20send%20data%20back.
-    channelConfSPI.configOptions = \
+    channeConfSPI.ClockRate = 5000;
+    channeConfSPI.LatencyTimer = 255; // TODO: https://www.ftdichip.com/Support/Knowledgebase/index.html?settingacustomdefaultlaten.htm#:~:text=The%20latency%20timer%20is%20a,would%20not%20send%20data%20back.
+    channeConfSPI.configOptions = \
     SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS5 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
-    channelConfSPI.Pin = 0x00000000;
-
-    // SPI Channel detection and opening
-    ftStatus = SPI_GetNumChannels(&channels);
-    APP_CHECK_STATUS(ftStatus);
-    ftStatus = SPI_OpenChannel(CHANNEL_TO_OPEN, &ftHandle);
-    APP_CHECK_STATUS(ftStatus);
-    printf("\nhandle=0x%x status=0x%x\n",ftHandle,ftStatus);
-    ftStatus = SPI_InitChannel(ftHandle,&channelConfSPI);
-    APP_CHECK_STATUS(ftStatus);
+    channeConfSPI.Pin = 0x00000000;
 
     // -----------------------------------------------------------
     // CORE 
     // -----------------------------------------------------------
     uint16_t data;
     size_t buffer_pos = 0;
-    constexpr std::chrono::microseconds kSamplePeriod(250);
-    auto next_sample_time = std::chrono::high_resolution_clock::now();
+    constexpr microseconds kSamplePeriod(250);
+    auto next_sample_time = high_resolution_clock::now();
 
+    auto start_write = high_resolution_clock::now();
+    auto stop_write = high_resolution_clock::now();
+    auto sampling1 = high_resolution_clock::now();
+    auto sampling2 = high_resolution_clock::now();
+    auto loopDuration = duration_cast<microseconds>(sampling1 - sampling2);
+    auto writeDuration = duration_cast<microseconds>(stop_write - start_write);
+    
     for (int i=0; i<10000; i++) 
     {
         // Prepare next sampling time
+        sampling2 = high_resolution_clock::now(); 
+        auto loopDuration = duration_cast<microseconds>(sampling2 - sampling1);
+        sampling1 = high_resolution_clock::now(); 
+        // std::cout << "Sampling period is" << loopDuration.count() << "us!\n";
         next_sample_time += kSamplePeriod;
 
         // Read and process
-        readSample(ftHandle, &data);
+        readDummySample(ftHandle, &data);
         sample_buffer[buffer_pos++] = data;
 
         // 
         if (buffer_pos >= BUFFER_SIZE)
         {
+            start_write = high_resolution_clock::now(); 
             buffer_pos = 0;
             if (storefile.is_open())
             {
@@ -114,6 +102,9 @@ int main(int argc, CHAR* argv[]) {
             } else {
                 std::cerr << "Unable to add data.";
             }
+            stop_write = high_resolution_clock::now(); 
+            writeDuration = duration_cast<microseconds>(stop_write - start_write);
+            std::cout << "It took " << writeDuration.count() <<" us to write!\n";
         } 
 
         // Wait until next sampling point
@@ -126,6 +117,6 @@ int main(int argc, CHAR* argv[]) {
     #ifdef _MSC_VER
         Cleanup_libMPSSE();
     #endif
-
+    printf("Arbeit vertigen");
     return 0; // Exit with success
 }
