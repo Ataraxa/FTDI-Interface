@@ -16,6 +16,8 @@
 // Application specific macros
 #define CHANNEL_TO_OPEN 0
 #define SPI_DEVICE_BUFFER_SIZE 256
+#define TOGGLE_SWITCH_1 0x10
+#define TOGGLE_SWITCH_2 0x20
 #define APP_CHECK_STATUS(exp) {if(exp!=FT_OK){printf("%s:%d:%s(): status(0x%x) \
 != FT_OK\n",__FILE__, __LINE__, __FUNCTION__,exp);exit(1);}else{;}};
 
@@ -53,7 +55,7 @@ FT_STATUS writeWord(FT_HANDLE ftHandle, uint16_t word)
     };
 
     fcStatus = SPI_Write(ftHandle,bytes,sizeToTransfer,&sizeTransferred,transferOptions);
-    printf("Successfully transferred %u bits", sizeTransferred);
+    printf("Successfully transferred %u bits\n", sizeTransferred);
     return fcStatus;
 }
 
@@ -66,6 +68,20 @@ uint16_t convertVoltToWord(int targetVoltage)
     return word;
 }
 
+int32_t setupPins(bool switch1, bool switch2)
+{   
+    uint32_t pins = 0x00000000;
+    uint8_t dirMask = 0x30;
+    uint8_t stateMask = (switch1 ? 0x20 : 0x00) | (switch2 ? 0x10 : 0x00);
+    uint16_t unusedMask = 0x0000;
+    pins = (static_cast<int32_t>(unusedMask) << 16) |
+           (static_cast<int32_t>(stateMask) << 8)  |
+           (static_cast<int8_t>(dirMask));
+         
+    std::cout << "Values written:" << std::bitset<32>(pins) << std::endl;
+
+    return pins;
+}
 int main()
 {
     FT_HANDLE ftHandle;
@@ -77,12 +93,13 @@ int main()
     #endif
 
     // SPI channel configuration
+
     channelConfSPI.ClockRate = 1000;
     channelConfSPI.LatencyTimer = 2;
     channelConfSPI.configOptions = \
     SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
-    channelConfSPI.Pin = 0x00000000;
-
+    channelConfSPI.Pin = setupPins(FALSE, TRUE);
+    printf("SPI Mode 3");
     // SPI Channel detection and opening
     // Get number of SPI channels
     ftStatus = SPI_GetNumChannels(&channels);
@@ -111,14 +128,27 @@ int main()
     // -----------------------------------------------------------
     double targetV;
     uint16_t word;
-    for(int i=0; i < 5; i++)
+    for(int i=0; i < 3; i++)
     {
-        targetV = randomInt()/2.0;
-        word = convertVoltToWord(targetV);
-        printf("Target voltage: %f | Corresponding 16-bit code: ");
+        // targetV = randomInt()/2.0;
+        // word = convertVoltToWord(targetV);
+        targetV = 2.5;
+        word = 0x9EB8;
+        printf("Target voltage: %.1f | Corresponding 16-bit code: ", targetV);
         std::cout << std::bitset<16>(word) << std::endl;
 
         writeWord(ftHandle, word);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+        // targetV = 0.0;
+        // word = 0x8000;
+        // printf("Target voltage: %.1f | Corresponding 16-bit code: ", targetV);
+        // std::cout << std::bitset<16>(word) << std::endl;
+
+        // writeWord(ftHandle, word);
+
+        // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     }
 
     return 0;
