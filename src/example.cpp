@@ -88,7 +88,7 @@ FT_STATUS read_byte(uint8 slaveAddress, uint8 address, uint16 *data)
     uint32 retry=0;
     bool state;
     FT_STATUS status;
-
+    
     /* CS_High + Write command + Address */
     sizeToTransfer=1;
     sizeTransfered=0;
@@ -106,7 +106,7 @@ FT_STATUS read_byte(uint8 slaveAddress, uint8 address, uint16 *data)
     SPI_TRANSFER_OPTIONS_SIZE_IN_BITS);
     APP_CHECK_STATUS(status);
     /*Read 2 bytes*/
-    sizeToTransfer=16;
+    sizeToTransfer=2;
     sizeTransfered=0;
     status = SPI_Read(ftHandle, buffer, sizeToTransfer, &sizeTransfered,
     SPI_TRANSFER_OPTIONS_SIZE_IN_BYTES|
