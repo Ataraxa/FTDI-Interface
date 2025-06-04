@@ -138,7 +138,7 @@ int main(int argc, CHAR* argv[]) {
     // -----------------------------------------------------------------
     // SPI Configuration
     channelConfSPI.ClockRate = 1000;
-    channelConfSPI.LatencyTimer = 1; // TODO: https://www.ftdichip.com/Support/Knowledgebase/index.html?settingacustomdefaultlaten.htm#:~:text=The%20latency%20timer%20is%20a,would%20not%20send%20data%20back.
+    channelConfSPI.LatencyTimer = 2; // TODO: https://www.ftdichip.com/Support/Knowledgebase/index.html?settingacustomdefaultlaten.htm#:~:text=The%20latency%20timer%20is%20a,would%20not%20send%20data%20back.
     channelConfSPI.configOptions = \
     SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
     channelConfSPI.Pin = 0x00000000;

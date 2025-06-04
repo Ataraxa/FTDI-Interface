@@ -1,16 +1,15 @@
 #include <iostream>
-#include <vector>
-#include <string>
+#include <random>
 
-using namespace std;
+int randomInt() {
+    static std::mt19937 gen(std::random_device{}());
+    static std::uniform_int_distribution<int> dist(-6, 6);
+    return dist(gen);
+}
 
-int main()
-{
-    vector<string> msg {"Hello", "C++", "World", "from", "VS Code", "and the C++ extension!"};
-
-    for (const string& word : msg)
-    {
-        cout << word << " ";
+int main() {
+    for (int i = 0; i < 10; i++) {
+        std::cout << randomInt()/2 << std::endl;
     }
-    cout << endl;
+    return 0;
 }
