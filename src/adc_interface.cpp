@@ -9,6 +9,7 @@
 
 #include "../include/ftd2xx.h"
 #include "../include/libmpsse_spi.h"
+// #include "../include/optiRead.h"
 
 // Application-specific macros
 #define CHANNEL_TO_OPEN 0
@@ -137,12 +138,12 @@ int main(int argc, CHAR* argv[]) {
     // SPI Communication Set-up
     // -----------------------------------------------------------------
     // SPI Configuration
-    channelConfSPI.ClockRate = 1000;
+    channelConfSPI.ClockRate = 100000;
     channelConfSPI.LatencyTimer = 2; // TODO: https://www.ftdichip.com/Support/Knowledgebase/index.html?settingacustomdefaultlaten.htm#:~:text=The%20latency%20timer%20is%20a,would%20not%20send%20data%20back.
     channelConfSPI.configOptions = \
-    SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
+    SPI_CONFIG_OPTION_MODE3 | SPI_CONFIG_OPTION_CS_DBUS3 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
     channelConfSPI.Pin = 0x00000000;
-
+    printf("MODE 3\n");
     // SPI Channel detection and opening
     // Get number of SPI channels
     ftStatus = SPI_GetNumChannels(&channels);
@@ -171,7 +172,7 @@ int main(int argc, CHAR* argv[]) {
     // -----------------------------------------------------------
     uint16_t data;
     size_t buffer_pos = 0;
-    constexpr std::chrono::milliseconds kSamplePeriod(20);
+    constexpr std::chrono::milliseconds kSamplePeriod(2000);
     auto next_sample_time = std::chrono::high_resolution_clock::now();
 
     for (int i=0; i<3; i++) 
@@ -184,20 +185,20 @@ int main(int argc, CHAR* argv[]) {
         // printf("%u \n", data);
         sample_buffer[buffer_pos++] = data;
 
-        // 
-        if (buffer_pos >= BUFFER_SIZE)
-        {
-            buffer_pos = 0;
-            if (storefile.is_open())
-            {
-                std::cout << "Appending to storage file...";
-                // storefile.rdbuf() -> pubsetbuf(buffer.data(), BUFFER_SIZE);
-                printf("Buffer is %u bytes.", sizeof(sample_buffer));
-                storefile.write((char*)&sample_buffer, sizeof(sample_buffer));
-            } else {
-                std::cerr << "Unable to add data.";
-            }
-        } 
+        // // 
+        // if (buffer_pos >= BUFFER_SIZE)
+        // {
+        //     buffer_pos = 0;
+        //     if (storefile.is_open())
+        //     {
+        //         std::cout << "Appending to storage file...";
+        //         // storefile.rdbuf() -> pubsetbuf(buffer.data(), BUFFER_SIZE);
+        //         printf("Buffer is %u bytes.", sizeof(sample_buffer));
+        //         storefile.write((char*)&sample_buffer, sizeof(sample_buffer));
+        //     } else {
+        //         std::cerr << "Unable to add data.";
+        //     }
+        // } 
 
         // Wait until next sampling point
         std::this_thread::sleep_until(next_sample_time);

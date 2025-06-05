@@ -97,7 +97,7 @@ int main()
     channelConfSPI.ClockRate = 1000;
     channelConfSPI.LatencyTimer = 2;
     channelConfSPI.configOptions = \
-    SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
+    SPI_CONFIG_OPTION_MODE3 | SPI_CONFIG_OPTION_CS_DBUS3 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
     channelConfSPI.Pin = setupPins(FALSE, TRUE);
     printf("SPI Mode 3");
     // SPI Channel detection and opening
@@ -130,8 +130,6 @@ int main()
     uint16_t word;
     for(int i=0; i < 3; i++)
     {
-        // targetV = randomInt()/2.0;
-        // word = convertVoltToWord(targetV);
         targetV = 2.5;
         word = 0x9EB8;
         printf("Target voltage: %.1f | Corresponding 16-bit code: ", targetV);
