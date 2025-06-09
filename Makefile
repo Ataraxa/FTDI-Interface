@@ -1,26 +1,44 @@
-# Compiler settings
-CXX = g++
-CXXFLAGS = -I./include   # Include paths
-LDFLAGS = -L./lib                             # Library path
-LDLIBS = -lmpsse -lftd2xx64                   # Libraries to link
+# Compiler and flags (Windows-compatible)
+CXX := g++
+CXXFLAGS := -I./include -std=c++17
+LDFLAGS := -L./lib
+LDLIBS := -lmpsse -lftd2xx64
 
-# Paths
-SRC_DIR = src
-UTILS_DIR = utils
-BIN_DIR = bin
+# Paths (use forward slashes)
+SRC_DIR := src
+UTILS_DIR := utils
+BIN_DIR := bin
+OBJ_DIR := lib/compiled
 
-# List of utility objects (e.g., "../utils/utils.o")
-UTILS_OBJ := $(wildcard lib/compiled/*.o)
+# For thread-specific files in src/
+THREAD_SRCS := $(wildcard $(SRC_DIR)/thread*.cpp)
+THREAD_OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(THREAD_SRCS))
 
-# Rule to compile a specific .cpp file from src/ into bin/
-# Usage: make TARGET=core
-TARGET = core # Default target (no extension)
+# Files
+UTILS_SRCS := $(wildcard $(UTILS_DIR)/*.cpp)
+UTILS_OBJS := $(patsubst $(UTILS_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(UTILS_SRCS))
+TARGET ?= core
 
-# Build rule
-$(BIN_DIR)/$(TARGET).exe: $(SRC_DIR)/$(TARGET).cpp $(UTILS_OBJ)
-	@echo "Building $@..."
+# Main executable
+$(BIN_DIR)/$(TARGET).exe: $(SRC_DIR)/$(TARGET).cpp $(UTILS_OBJS) $(THREAD_OBJS)
+	@echo "=== Linking $@ ==="
 	@mkdir -p $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
+	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@ $(LDLIBS)
 
-# Shortcut
-build: $(BIN_DIR)/$(TARGET).exe
+# Compile thread*.cpp files from src/ to .o files
+$(OBJ_DIR)/thread%.o: $(SRC_DIR)/thread%.cpp
+	@echo "=== Compiling $< ==="
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+
+# Compile utils/ to .o files
+$(OBJ_DIR)/%.o: $(UTILS_DIR)/%.cpp
+	@echo "=== Compiling $< ==="
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Clean (Windows-compatible)
+clean:
+	@if exist "$(OBJ_DIR)" rmdir /s /q "$(OBJ_DIR)"
+	@echo "Cleaned!"

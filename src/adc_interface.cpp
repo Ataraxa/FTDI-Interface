@@ -36,56 +36,66 @@ FT_STATUS readSample(FT_HANDLE ftHandle, uint16_t *data)
     static DWORD sizeTransferred = 0; 
     static FT_STATUS fcStatus;
 
-    static uint32_t dataRead = 0;
+    uint8_t buffer[3] = {};
+    // std::cout << std::to_string(buffer[0]) << std::endl;
+    // std::cout << std::to_string(buffer[1]) << std::endl;
 
     // Read 16 bits from ADC
     sizeToTransfer = 18;
     sizeTransferred = 0;
-    fcStatus = SPI_Read(ftHandle, (UCHAR *)&dataRead, sizeToTransfer, &sizeTransferred,
+    fcStatus = SPI_Read(ftHandle, (UCHAR *)&buffer, sizeToTransfer, &sizeTransferred,
     SPI_TRANSFER_OPTIONS_SIZE_IN_BITS | SPI_TRANSFER_OPTIONS_CHIPSELECT_ENABLE |
     SPI_TRANSFER_OPTIONS_CHIPSELECT_DISABLE);
     APP_CHECK_STATUS(fcStatus);
 
-    std::cout << std::bitset<18>(dataRead) << std::endl;
+    // std::cout << std::bitset<8>(buffer[0]) << "|" << std::bitset<8>(buffer[1]) << "|" << std::bitset<8>(buffer[3]) << std::endl;
+    // std::cout <<  << std::endl;
 
     // Reconstruct data
-    *data = (uint16_t)(buffer[1]<<8);
-    *data = (*data & 0xFF00) | (0x00FF & (uint16_t)buffer[0]);
+    *data = 0x00;
+    *data = *data | (buffer[2] >> 6);
+    *data = *data | (buffer[1] << 2);
+    *data = *data | (buffer[0] << 10);
+
+    // std::cout << std::bitset<16>(*data) << "|";
 
     return fcStatus;
 }
 
-// FT_STATUS readSample(FT_HANDLE ftHandle, uint16_t *data)
-// {
-//     // Instantiate auxiliary variables
-//     static uint32_t sizeToTransfer = 0;
-//     static DWORD sizeTransferred = 0; 
-//     static FT_STATUS fcStatus;
-//     static uint32_t dataRead = 0;
-//     // Read 16 bits from ADC
-//     sizeToTransfer = 18;
-//     sizeTransferred = 0;
+FT_STATUS readManual(FT_HANDLE ftHandle)
+{
+    static FT_STATUS fcStatus;
+    // double halfPeriod = (double)1/(freqHz*2.0);
+    std::chrono::nanoseconds kHalfPeriod(5);
 
-//     printf("Gonna toggle CS line!");
-//     fcStatus = SPI_ToggleCS(ftHandle, TRUE);
-//     fcStatus = FT_Read(ftHandle, (UCHAR *)&dataRead, sizeToTransfer, &sizeTransferred);
-//     // SPI_TRANSFER_OPTIONS_SIZE_IN_BITS | SPI_TRANSFER_OPTIONS_CHIPSELECT_ENABLE | SPI_TRANSFER_OPTIONS_CHIPSELECT_DISABLE);
-//     APP_CHECK_STATUS(fcStatus);
-//     fcStatus = SPI_ToggleCS(ftHandle, FALSE);
+    // Set SCLK high before asserting CS
+    uint8_t dir = 0x80;
+    uint8_t val = 0x80;
+    // fcStatus = FT_WriteGPIO(ftHandle, dir, val);
+    // SPI_ToggleCS(ftHandle, TRUE);
 
+    for(int i=0;i<30;i++)
+    {
+        // Falling edge SCLK
+        FT_WriteGPIO(ftHandle, dir, 0x00);
+        // std::this_thread::sleep_for(kHalfPeriod);
 
-//     // Logging
-//     std::cout << std::bitset<18>(dataRead) << std::endl;
-//     printf("Data read: %X | %i bits transferred.\n", dataRead, sizeTransferred);
+        // Rising edge SCLK
+        FT_WriteGPIO(ftHandle, dir, 0x80);
+        // std::this_thread::sleep_for(kHalfPeriod);
+        if (i==13)
+        {
+           SPI_ToggleCS(ftHandle, TRUE); 
+        }
+    }
 
-//     // Reconstruct data
-//     *data = (uint16_t)(buffer[1]<<8);
-//     *data = (*data & 0xFF00) | (0x00FF & (uint16_t)buffer[0]);
+    SPI_ToggleCS(ftHandle, FALSE);
 
-//     return fcStatus;
-// }
+    return fcStatus;
+}
 
-std::string createUniqueFile() {
+std::string createUniqueFile() 
+{
     // Debug
     std::string base_path = "../data/recordings";
     std::string extension = ".bin";
@@ -138,8 +148,8 @@ int main(int argc, CHAR* argv[]) {
     // SPI Communication Set-up
     // -----------------------------------------------------------------
     // SPI Configuration
-    channelConfSPI.ClockRate = 100000;
-    channelConfSPI.LatencyTimer = 2; // TODO: https://www.ftdichip.com/Support/Knowledgebase/index.html?settingacustomdefaultlaten.htm#:~:text=The%20latency%20timer%20is%20a,would%20not%20send%20data%20back.
+    channelConfSPI.ClockRate = 1000000;
+    channelConfSPI.LatencyTimer = 255; // TODO: https://www.ftdichip.com/Support/Knowledgebase/index.html?settingacustomdefaultlaten.htm#:~:text=The%20latency%20timer%20is%20a,would%20not%20send%20data%20back.
     channelConfSPI.configOptions = \
     SPI_CONFIG_OPTION_MODE3 | SPI_CONFIG_OPTION_CS_DBUS3 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
     channelConfSPI.Pin = 0x00000000;
@@ -152,15 +162,15 @@ int main(int argc, CHAR* argv[]) {
 
     // Info about opened channel
     FT_DEVICE_LIST_INFO_NODE infoChanSPI;
-    ftStatus = SPI_GetChannelInfo(CHANNEL_TO_OPEN, &infoChanSPI);
-    printf("The opened channel has the followng properties:\n");
-    printf(" Flags=0x%x\n",infoChanSPI.Flags);
-    printf(" Type=0x%x\n",infoChanSPI.Type);
-    printf(" ID=0x%x\n",infoChanSPI.ID);
-    printf(" LocId=0x%x\n",infoChanSPI.LocId);
-    printf(" SerialNumber=%s\n",infoChanSPI.SerialNumber);
-    printf(" Description=%s\n",infoChanSPI.Description);
-    printf(" ftHandle=0x%x\n",infoChanSPI.ftHandle);
+    // ftStatus = SPI_GetChannelInfo(CHANNEL_TO_OPEN, &infoChanSPI);
+    // printf("The opened channel has the followng properties:\n");
+    // printf(" Flags=0x%x\n",infoChanSPI.Flags);
+    // printf(" Type=0x%x\n",infoChanSPI.Type);
+    // printf(" ID=0x%x\n",infoChanSPI.ID);
+    // printf(" LocId=0x%x\n",infoChanSPI.LocId);
+    // printf(" SerialNumber=%s\n",infoChanSPI.SerialNumber);
+    // printf(" Description=%s\n",infoChanSPI.Description);
+    // printf(" ftHandle=0x%x\n",infoChanSPI.ftHandle);
     ftStatus = SPI_OpenChannel(CHANNEL_TO_OPEN, &ftHandle);
     APP_CHECK_STATUS(ftStatus);
     printf("\nhandle=0x%x status=0x%x\n",ftHandle,ftStatus);
@@ -172,10 +182,10 @@ int main(int argc, CHAR* argv[]) {
     // -----------------------------------------------------------
     uint16_t data;
     size_t buffer_pos = 0;
-    constexpr std::chrono::milliseconds kSamplePeriod(2000);
+    constexpr std::chrono::microseconds kSamplePeriod(250);
     auto next_sample_time = std::chrono::high_resolution_clock::now();
 
-    for (int i=0; i<3; i++) 
+    for (int i=0; i<50000; i++) 
     {
         // Prepare next sampling time
         next_sample_time += kSamplePeriod;
@@ -183,22 +193,25 @@ int main(int argc, CHAR* argv[]) {
         // Read and process
         readSample(ftHandle, &data);
         // printf("%u \n", data);
+        // std::cout << (int16_t)data << std::endl;
         sample_buffer[buffer_pos++] = data;
+        // int halfPeriod= 500;
+        // readManual(ftHandle);
 
         // // 
-        // if (buffer_pos >= BUFFER_SIZE)
-        // {
-        //     buffer_pos = 0;
-        //     if (storefile.is_open())
-        //     {
-        //         std::cout << "Appending to storage file...";
-        //         // storefile.rdbuf() -> pubsetbuf(buffer.data(), BUFFER_SIZE);
-        //         printf("Buffer is %u bytes.", sizeof(sample_buffer));
-        //         storefile.write((char*)&sample_buffer, sizeof(sample_buffer));
-        //     } else {
-        //         std::cerr << "Unable to add data.";
-        //     }
-        // } 
+        if (buffer_pos >= BUFFER_SIZE)
+        {
+            buffer_pos = 0;
+            if (storefile.is_open())
+            {
+                std::cout << "Appending to storage file..." << std::endl;
+                // storefile.rdbuf() -> pubsetbuf(buffer.data(), BUFFER_SIZE);
+                printf("Buffer is %u bytes.", sizeof(sample_buffer));
+                storefile.write((char*)&sample_buffer, sizeof(sample_buffer));
+            } else {
+                std::cerr << "Unable to add data." << std::endl;
+            }
+        } 
 
         // Wait until next sampling point
         std::this_thread::sleep_until(next_sample_time);
