@@ -17,13 +17,3 @@ uint16_t convertVoltToWord(int targetVoltage)
     return word;
 }
 
-struct ConfigDBS
-{
-    int frequency;
-    uint32_t amplitudeWord;
-    chrono::microseconds highTime;
-    chrono::microseconds interTime;
-    chrono::microseconds lowTime;
-    chrono::microseconds bufferTime;
-    
-};

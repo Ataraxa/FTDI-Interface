@@ -8,9 +8,9 @@ uint16_t convertVoltToWord(int targetVoltage);
 
 struct ConfigDBS {
     int frequency;
-    uint32_t lowAmplitudeWord;
     uint32_t highAmplitudeWord;
     uint32_t nullWord;
+    uint32_t lowAmplitudeWord;
     std::chrono::microseconds highTime;
     std::chrono::microseconds interTime;
     std::chrono::microseconds lowTime;

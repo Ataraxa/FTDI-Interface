@@ -185,7 +185,7 @@ int main(int argc, CHAR* argv[]) {
     constexpr std::chrono::microseconds kSamplePeriod(250);
     auto next_sample_time = std::chrono::high_resolution_clock::now();
 
-    for (int i=0; i<50000; i++) 
+    for (int i=0; i<8000; i++) 
     {
         // Prepare next sampling time
         next_sample_time += kSamplePeriod;

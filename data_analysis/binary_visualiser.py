@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # 1. Read binary file as uint16 (assumes little-endian)
-filename = 'data/recordings118.bin'  # Replace with your file path
+filename = 'data/recordings128.bin'  # Replace with your file path
 with open(filename, 'rb') as f:
     raw_data = f.read()  # Read all bytes
 

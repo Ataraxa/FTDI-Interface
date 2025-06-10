@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cstdio>
 
+#include "../include/openSPI.h"
 #include "../include/ftd2xx.h"
 #include "../include/libmpsse_spi.h"
 
@@ -57,12 +58,12 @@ FT_HANDLE openChannelSPI(ChannelConfig config, DWORD channels, int channelToOpen
     return ftHandle;
 }
 
-FT_STATUS writeWord(FT_HANDLE ftHandle, uint16_t word)
+FT_STATUS writeWord(FT_HANDLE ftHandle, uint16_t word, uint32_t transferOptions)
 {
+    // std::cout << std::bitset<16>(word) << std::endl;
     static FT_STATUS fcStatus;
     DWORD sizeTransferred = 0;
-    uint32_t sizeToTransfer = 16;
-    uint32_t transferOptions = SPI_TRANSFER_OPTIONS_CHIPSELECT_DISABLE | SPI_TRANSFER_OPTIONS_CHIPSELECT_ENABLE | SPI_TRANSFER_OPTIONS_SIZE_IN_BITS;
+    uint32_t sizeToTransfer = 2;
 
     UCHAR bytes[2] = {
         static_cast<UCHAR>((word >> 8) & 0xFF),  // High byte
@@ -72,4 +73,23 @@ FT_STATUS writeWord(FT_HANDLE ftHandle, uint16_t word)
     fcStatus = SPI_Write(ftHandle,bytes,sizeToTransfer,&sizeTransferred,transferOptions);
     // printf("Successfully transferred %u bits\n", sizeTransferred);
     return fcStatus;
+}
+
+// Pre-allocated buffer (global or thread-local for reuse)
+// 0x80: GPIO write-> (1) Value | (2) Direction, 1 for out, 0 for in
+// 0x11: clock out data -> (1) LSB length | (2) MSB length 
+
+
+// Opti transfer (2 bytes only)
+void SPI_Transfer_2Bytes(FT_HANDLE ftHandle, uint8_t byte1, uint8_t byte2) {
+    thread_local SPI_Transaction txn;  // Reused buffer
+    
+    // Update transaction data (avoids alloc)
+    txn.data_byte[0] = byte1;
+    txn.data_byte[0] = byte2;  // 1st byte   // 2nd byte
+    
+    // Single USB write (7 bytes total)
+    DWORD written;
+    std::cout << bitset<>(txn) << std::endl
+    FT_Write(ftHandle, &txn, sizeof(SPI_Transaction), &written);
 }
