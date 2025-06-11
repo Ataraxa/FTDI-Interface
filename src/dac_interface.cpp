@@ -55,7 +55,13 @@ void printBuffer(const uint8_t *buffer, size_t length)
     std::cout << std::dec << "\n";
 }
 
-void parseBuffer(BYTE* buffer, DWORD &bufferLoc, uint16_t waitTime1, uint16_t waitTime2, uint16_t waitTime3)
+void parseBuffer(BYTE* buffer,
+    DWORD &bufferLoc, 
+    uint16_t waitTime1, 
+    uint16_t waitTime2, 
+    uint16_t waitTime3,
+    uint16_t codeHigh,
+    uint16_t codeLow)
 {
     bufferLoc = 0;
 
@@ -67,8 +73,8 @@ void parseBuffer(BYTE* buffer, DWORD &bufferLoc, uint16_t waitTime1, uint16_t wa
     buffer[bufferLoc++] = 0x11;
     buffer[bufferLoc++] = 0x01;
     buffer[bufferLoc++] = 0x00;
-    buffer[bufferLoc++] = 0x99;
-    buffer[bufferLoc++] = 0x99;
+    buffer[bufferLoc++] = (codeHigh >> 8 ) & 0xFF;
+    buffer[bufferLoc++] = codeHigh & 0xFF;
     
     buffer[bufferLoc++] = 0x80;
     buffer[bufferLoc++] = 0xC8;
@@ -115,8 +121,8 @@ void parseBuffer(BYTE* buffer, DWORD &bufferLoc, uint16_t waitTime1, uint16_t wa
     buffer[bufferLoc++] = 0x11;
     buffer[bufferLoc++] = 0x01;
     buffer[bufferLoc++] = 0x00;
-    buffer[bufferLoc++] = 0x66;
-    buffer[bufferLoc++] = 0x66;
+    buffer[bufferLoc++] = (codeLow >> 8) & 0xFF;
+    buffer[bufferLoc++] = codeLow & 0xFF;
 
     buffer[bufferLoc++] = 0x80;
     buffer[bufferLoc++] = 0xC8;
@@ -156,7 +162,7 @@ int main()
     DWORD bytesRead;
     DWORD bufferLoc;
     DWORD written;
-    BYTE buffer[1024]; 
+    BYTE buffer[2048]; 
     BYTE inputBuffer[16];
 
     // SPI channel configuration
@@ -215,100 +221,18 @@ int main()
 
     Sleep(50);
 
-    // ftStatus = FT_GetQueueStatus(ftHandle, &bytesToRead);
-    // ftStatus = FT_Read(ftHandle, &inputBuffer, bytesToRead, &bytesRead); //Read out the data from input buffer
-    // APP_CHECK_STATUS(ftStatus);
-    // printBuffer(inputBuffer, sizeof(inputBuffer));
-
 
     // -----------------------------------------------------------
     // CORE
     // -----------------------------------------------------------
-    // COMMAND BUFFER
-
-    // Set CS low
-    // buffer[bufferLoc++] = 0x80;
-    // buffer[bufferLoc++] = 0x88;
-    // buffer[bufferLoc++] = 0x8B;
-    // bufferLoc = 0;
-    // buffer[bufferLoc++] = 0x80;
-    // buffer[bufferLoc++] = 0x40;
-    // buffer[bufferLoc++] = 0xFB;
-    // ftStatus = FT_Write(ftHandle, buffer, bufferLoc, &written);
-    // // std::this_thread::sleep_for(std::chrono::microseconds(100));
-    // printBuffer(buffer, sizeof(buffer));
-    // std::cout << "Buffer length:" << bufferLoc << std::endl;
-    // APP_CHECK_STATUS(ftStatus);
-
-    // ftStatus = FT_GetQueueStatus(ftHandle, &bytesToRead);
-    // ftStatus = FT_Read(ftHandle, &inputBuffer, bytesToRead, &bytesRead); //Read out the data from input buffer
-    // APP_CHECK_STATUS(ftStatus);
-    // printBuffer(inputBuffer, sizeof(inputBuffer));
-    // std::cout << "Buffer length:" << bytesToRead << std::endl;
+   
     bufferLoc = 0;
 
-    // // First packet
-    // buffer[bufferLoc++] = 0x80;
-    // buffer[bufferLoc++] = 0x48;
-    // buffer[bufferLoc++] = 0xFB;
-
-    // buffer[bufferLoc++] = 0x11;
-    // buffer[bufferLoc++] = 0x01;
-    // buffer[bufferLoc++] = 0x00;
-
-    // buffer[bufferLoc++] = 0x99;
-    // buffer[bufferLoc++] = 0x66;
-
-    // buffer[bufferLoc++] = 0x80;
-    // buffer[bufferLoc++] = 0xC8;
-    // buffer[bufferLoc++] = 0xFB;
-
-    // // Buffer packet to get tempo
-    // buffer[bufferLoc++] = 0x11;
-    // buffer[bufferLoc++] = 0x13;
-    // buffer[bufferLoc++] = 0x00;
-
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-    // buffer[bufferLoc++] = 0x00;
-
-    // // Second packet
-    // buffer[bufferLoc++] = 0x80;
-    // buffer[bufferLoc++] = 0x48;
-    // buffer[bufferLoc++] = 0xFB;
-
-    // buffer[bufferLoc++] = 0x11;
-    // buffer[bufferLoc++] = 0x01;
-    // buffer[bufferLoc++] = 0x00;
-
-    // buffer[bufferLoc++] = 0xB6;
-    // buffer[bufferLoc++] = 0xFF;
-
-    // buffer[bufferLoc++] = 0x80;
-    // buffer[bufferLoc++] = 0xC8;
-    // buffer[bufferLoc++] = 0xFB;
-
     uint16_t wait1 = 100;
-    uint16_t wait2 = 20;
+    uint16_t wait2 = 100;
     uint16_t wait3 = 100;
-    parseBuffer(buffer, bufferLoc, wait1, wait2, wait3);
+    parseBuffer(buffer, bufferLoc, wait1, wait2, wait3,0xBF5C, 0x40A4);
+
     FT_Write(ftHandle, buffer, bufferLoc, &written);
 
     // FT_Write(ftHandle, buffer, bufferLoc, &written);
@@ -322,7 +246,17 @@ int main()
 
     printf("hello world\n");
 
-    // std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    // -----------------------------------------------------------
+    // Start closing everything down
+    // -----------------------------------------------------------
+    printf("\nAN_135 example program executed successfully.\n");
+    printf("Press <Enter> to continue\n");
+    getchar(); // wait for a carriage return
+    FT_SetBitMode(ftHandle, 0x0, 0x00);
+    // Reset MPSSE
+    FT_Close(ftHandle); // Close the port
+    return 0; // Exit with success
 
     return 0;
 }
