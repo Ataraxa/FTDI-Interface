@@ -3,9 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
 
-def detect_pulses_first_deriv(index=1, channel=1, threshold=0.001):
+def detect_pulses_first_deriv(index="01", channel=1, threshold=0.001):
     # Load data and extract last two columns
-    csv_file = f"data/ALL000{index}/F000{index}CH{channel}.csv"
+    csv_file = f"data/ALL00{index}/F00{index}CH{channel}.csv"
     df = pd.read_csv(csv_file, header=None)
 
     xscale = float(df.iloc[11,1])
@@ -89,4 +89,4 @@ def detect_pulses_first_deriv(index=1, channel=1, threshold=0.001):
     return 0
 
 # Usage:
-pulse_edges = detect_pulses_first_deriv(index=8,channel=2, threshold=0.01)
+pulse_edges = detect_pulses_first_deriv(index="20",channel=1, threshold=0.01)

@@ -33,16 +33,18 @@ $(BIN_DIR)/$(TARGET).exe: $(SRC_DIR)/openSPI.cpp
 endif
 
 # Compile thread*.cpp files from src/ to .o files
-# $(OBJ_DIR)/thread%.o: $(SRC_DIR)/thread%.cpp
-# 	@echo "=== Compiling $< ==="
-# 	@mkdir -p $(OBJ_DIR)
-# 	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/thread%.o: $(SRC_DIR)/thread%.cpp
+	@echo "=== Compiling $< ==="
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+	@echo ""
 
 # Compile utils/ to .o files
-# $(OBJ_DIR)/%.o: $(UTILS_DIR)/%.cpp
-# 	@echo "=== Compiling $< ==="
-# 	@mkdir -p $(OBJ_DIR)
-# 	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o: $(UTILS_DIR)/%.cpp
+	@echo "=== Compiling $< ==="
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+	@echo ""
 
 # Clean (Windows-compatible)
 clean:

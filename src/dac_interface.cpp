@@ -231,7 +231,7 @@ int main()
     uint16_t wait1 = 100;
     uint16_t wait2 = 100;
     uint16_t wait3 = 100;
-    parseBuffer(buffer, bufferLoc, wait1, wait2, wait3,0xBF5C, 0x40A4);
+    parseBuffer(buffer, bufferLoc, wait1, wait2, wait3,0xA666,0x599A);
 
     FT_Write(ftHandle, buffer, bufferLoc, &written);
 
@@ -246,13 +246,13 @@ int main()
 
     printf("hello world\n");
 
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    // std::this_thread::sleep_for(std::chrono::seconds(5));
     // -----------------------------------------------------------
     // Start closing everything down
     // -----------------------------------------------------------
     printf("\nAN_135 example program executed successfully.\n");
-    printf("Press <Enter> to continue\n");
-    getchar(); // wait for a carriage return
+    // printf("Press <Enter> to continue\n");
+    // getchar(); // wait for a carriage return
     FT_SetBitMode(ftHandle, 0x0, 0x00);
     // Reset MPSSE
     FT_Close(ftHandle); // Close the port

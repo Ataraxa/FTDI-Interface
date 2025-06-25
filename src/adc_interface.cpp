@@ -12,7 +12,7 @@
 // #include "../include/optiRead.h"
 
 // Application-specific macros
-#define CHANNEL_TO_OPEN 0
+#define CHANNEL_TO_OPEN 1
 #define SPI_DEVICE_BUFFER_SIZE 256
 
 namespace fs = std::filesystem;
@@ -51,45 +51,18 @@ FT_STATUS readSample(FT_HANDLE ftHandle, uint16_t *data)
     // std::cout << std::bitset<8>(buffer[0]) << "|" << std::bitset<8>(buffer[1]) << "|" << std::bitset<8>(buffer[3]) << std::endl;
     // std::cout <<  << std::endl;
 
+    // Check data validity
+    if(buffer[0] & 0xC0 != 0x80) {
+        // std::cout << "First buffer invalid: " << buffer[0] << std::endl;
+    }
+
     // Reconstruct data
-    *data = 0x00;
+    *data = 0x0000;
     *data = *data | (buffer[2] >> 6);
     *data = *data | (buffer[1] << 2);
     *data = *data | (buffer[0] << 10);
 
-    // std::cout << std::bitset<16>(*data) << "|";
-
-    return fcStatus;
-}
-
-FT_STATUS readManual(FT_HANDLE ftHandle)
-{
-    static FT_STATUS fcStatus;
-    // double halfPeriod = (double)1/(freqHz*2.0);
-    std::chrono::nanoseconds kHalfPeriod(5);
-
-    // Set SCLK high before asserting CS
-    uint8_t dir = 0x80;
-    uint8_t val = 0x80;
-    // fcStatus = FT_WriteGPIO(ftHandle, dir, val);
-    // SPI_ToggleCS(ftHandle, TRUE);
-
-    for(int i=0;i<30;i++)
-    {
-        // Falling edge SCLK
-        FT_WriteGPIO(ftHandle, dir, 0x00);
-        // std::this_thread::sleep_for(kHalfPeriod);
-
-        // Rising edge SCLK
-        FT_WriteGPIO(ftHandle, dir, 0x80);
-        // std::this_thread::sleep_for(kHalfPeriod);
-        if (i==13)
-        {
-           SPI_ToggleCS(ftHandle, TRUE); 
-        }
-    }
-
-    SPI_ToggleCS(ftHandle, FALSE);
+    std::cout << std::bitset<16>(*data) << "|";
 
     return fcStatus;
 }
@@ -162,15 +135,15 @@ int main(int argc, CHAR* argv[]) {
 
     // Info about opened channel
     FT_DEVICE_LIST_INFO_NODE infoChanSPI;
-    // ftStatus = SPI_GetChannelInfo(CHANNEL_TO_OPEN, &infoChanSPI);
-    // printf("The opened channel has the followng properties:\n");
-    // printf(" Flags=0x%x\n",infoChanSPI.Flags);
-    // printf(" Type=0x%x\n",infoChanSPI.Type);
-    // printf(" ID=0x%x\n",infoChanSPI.ID);
-    // printf(" LocId=0x%x\n",infoChanSPI.LocId);
-    // printf(" SerialNumber=%s\n",infoChanSPI.SerialNumber);
-    // printf(" Description=%s\n",infoChanSPI.Description);
-    // printf(" ftHandle=0x%x\n",infoChanSPI.ftHandle);
+    ftStatus = SPI_GetChannelInfo(CHANNEL_TO_OPEN, &infoChanSPI);
+    printf("The opened channel has the followng properties:\n");
+    printf(" Flags=0x%x\n",infoChanSPI.Flags);
+    printf(" Type=0x%x\n",infoChanSPI.Type);
+    printf(" ID=0x%x\n",infoChanSPI.ID);
+    printf(" LocId=0x%x\n",infoChanSPI.LocId);
+    printf(" SerialNumber=%s\n",infoChanSPI.SerialNumber);
+    printf(" Description=%s\n",infoChanSPI.Description);
+    printf(" ftHandle=0x%x\n",infoChanSPI.ftHandle);
     ftStatus = SPI_OpenChannel(CHANNEL_TO_OPEN, &ftHandle);
     APP_CHECK_STATUS(ftStatus);
     printf("\nhandle=0x%x status=0x%x\n",ftHandle,ftStatus);
@@ -193,7 +166,7 @@ int main(int argc, CHAR* argv[]) {
         // Read and process
         readSample(ftHandle, &data);
         // printf("%u \n", data);
-        // std::cout << (int16_t)data << std::endl;
+        std::cout << (int16_t)data << std::endl;
         sample_buffer[buffer_pos++] = data;
         // int halfPeriod= 500;
         // readManual(ftHandle);
