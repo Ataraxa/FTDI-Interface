@@ -1,17 +1,22 @@
-#include<vector>
+#include <vector>
 #include <thread>
+#include <functional>
 
 #include "../include/thread_adbs.h"
 #include "../include/threadSafeBuffer.h"
 #include "../include/sharedConfig.h"
-#include "../include/dummy_interfaces.h"
+#include "../include/dummy_utils.h"
 #include "../include/SPI_utils.h"
 
-void thread_adbs(ThreadSafeBuffer& memoryBuffer, SharedConfig& sharedCfg) {
+void thread_adbs(ThreadSafeBuffer& memoryBuffer, SharedConfig& sharedCfg)
+{
     // ------------------------------------------------------------------
     //    Shared variables
     // ------------------------------------------------------------------
     DWORD bytesToRead;
+    std::function< int16_t(FT_HANDLE, uint16_t*) > readFunction;
+    std::function< FT_STATUS(FT_HANDLE,LPVOID,DWORD,LPDWORD) > writeFunction;
+    FT_STATUS ftStatus;
 
     // ------------------------------------------------------------------
     //    ADC Configuration
@@ -25,8 +30,13 @@ void thread_adbs(ThreadSafeBuffer& memoryBuffer, SharedConfig& sharedCfg) {
     SPI_CONFIG_OPTION_MODE3 | SPI_CONFIG_OPTION_CS_DBUS3 | SPI_CONFIG_OPTION_CS_ACTIVELOW;
     channelConfADC.Pin = 0x00000000;
 
-    FT_Open(0, &handleADC);
-    configurePortMPSSE(&handleADC, bytesToRead);
+    #ifndef DEBUG
+        FT_Open(0, &handleADC);
+        configurePortMPSSE(&handleADC, bytesToRead);
+        readFunction = readSample;
+    #else 
+        readFunction = readDummy;
+    #endif
 
     // Variables related to input buffer
     uint16_t data;
@@ -35,16 +45,16 @@ void thread_adbs(ThreadSafeBuffer& memoryBuffer, SharedConfig& sharedCfg) {
     //    DAC Configuration
     // ------------------------------------------------------------------
     FT_HANDLE handleDAC;
-
-    // std::vector<int> config;
-    // config = sharedCfg.getCurrent();
-    // int frequency = config[0];
-    // int amplitude = config[1];
     int amplitude = 1; // in V
   
-    FT_Open(1, &handleDAC);
-    configurePortMPSSE(&handleDAC, bytesToRead);
-
+    #ifndef DEBUG
+        FT_Open(1, &handleDAC);
+        configurePortMPSSE(&handleDAC, bytesToRead);
+        writeFunction = FT_Write;
+    #else
+        writeFunction = DUMMY_Write;
+    #endif
+    
     // Variables related to MPSSE buffer
     DWORD written;
     DWORD bufferLoc;
@@ -73,20 +83,23 @@ void thread_adbs(ThreadSafeBuffer& memoryBuffer, SharedConfig& sharedCfg) {
     // ------------------------------------------------------------------
     //    MAIN LOOP
     // ------------------------------------------------------------------
-    for(int i=0;i<1000;i++)
+    for(int i=0;i<10;i++)
     {
         next_sample_time += sampling_period;
-        data = dummyReadADC();
+        ftStatus = readFunction(handleADC, &data);
         sampleClockCounter++;
+        memoryBuffer.addData(data);
 
-        if(sampleClockCounter=sampleToStimDivider)
+        if(sampleClockCounter == sampleToStimDivider)
         {
+            sampleClockCounter = 0;
+
             // Then need to send stimulus
             parseBuffer(buffer, bufferLoc, 
                 widthHighPulse, widthInterPulse, widthLowPulse,
                 highWord, lowWord
             );
-            FT_Write(handleDAC, buffer, bufferLoc, &written);
+            writeFunction(handleDAC, buffer, bufferLoc, &written);
         }   
         
         std::this_thread::sleep_until(next_sample_time);

@@ -1,6 +1,9 @@
-// #ifndef THREAD_BAYES_H
-// #define THREAD_BAYES_H
+#ifndef THREAD_BAYES_H
+#define THREAD_BAYES_H
 
-// void thread_bayes(ThreadSafeBuffer& buffer, SharedConfig& config);
+#include "../include/threadSafeBuffer.h"
+#include "../include/sharedConfig.h"
 
-// #endif
+void thread_bayes(ThreadSafeBuffer& memoryBuffer, SharedConfig& config);
+
+#endif

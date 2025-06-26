@@ -92,7 +92,7 @@ void configurePortMPSSE(FT_HANDLE *ftHandle, DWORD bytesToRead)
 // ------------------------------------------------------------------
 
 
-FT_STATUS readSample(FT_HANDLE ftHandle, uint16_t *data)
+FT_STATUS readSample(FT_HANDLE ftHandle, uint16_t* data)
 {
     // Instantiate auxiliary variables
     static uint32_t sizeToTransfer = 0;

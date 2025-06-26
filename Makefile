@@ -2,7 +2,7 @@
 CXX := g++
 CXXFLAGS := -I./include -std=c++17
 LDFLAGS := -L./lib
-LDLIBS := -lmpsse -lftd2xx64
+LDLIBS := -lmpsse -lftd2xx64 -lfftw3-3
 
 # Paths (use forward slashes)
 SRC_DIR := src
@@ -18,13 +18,14 @@ THREAD_OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(THREAD_SRCS))
 UTILS_SRCS := $(wildcard $(UTILS_DIR)/*.cpp)
 UTILS_OBJS := $(patsubst $(UTILS_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(UTILS_SRCS))
 TARGET ?= core
+RUN_STATE ?= DEBUG
 
 # Main executable - different rules based on target
 ifeq ($(TARGET),core)
 $(BIN_DIR)/$(TARGET).exe: $(SRC_DIR)/$(TARGET).cpp $(UTILS_OBJS) $(THREAD_OBJS)
 	@echo "=== Linking $@ (core version) ==="
 	@mkdir -p $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@ $(LDLIBS)
+	$(CXX) -D$(RUN_STATE) $(CXXFLAGS) $^ $(LDFLAGS) -o $@ $(LDLIBS)
 else
 $(BIN_DIR)/$(TARGET).exe: $(SRC_DIR)/openSPI.cpp
 	@echo "=== Linking $@ (non-core version) ==="
@@ -36,7 +37,7 @@ endif
 $(OBJ_DIR)/thread%.o: $(SRC_DIR)/thread%.cpp
 	@echo "=== Compiling $< ==="
 	@mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) -D$(RUN_STATE) $(CXXFLAGS) -c $< -o $@
 	@echo ""
 
 # Compile utils/ to .o files

@@ -163,6 +163,7 @@ int main(int argc, CHAR* argv[]) {
         // Prepare next sampling time
         next_sample_time += kSamplePeriod;
 
+        
         // Read and process
         readSample(ftHandle, &data);
         // printf("%u \n", data);
