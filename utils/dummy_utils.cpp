@@ -5,6 +5,7 @@
 #include <thread>
 #include <chrono>
 #include <math.h>
+#include <algorithm>
 
 #include "../include/dummy_utils.h"
 #include "../include/ftd2xx.h"
@@ -31,6 +32,8 @@ FT_STATUS readDummy(FT_HANDLE ftHandle, uint16_t* data)
     
     // Core of function
     voltage = 5 * std::sin(2 * 3.1415 * f * t) + noiseSampleWGN;
+    voltage = std::clamp(voltage, -4.99, 4.99);
+
     outputCode = std::round(voltage/5*std::pow(2, 15));
     *data = outputCode;
     

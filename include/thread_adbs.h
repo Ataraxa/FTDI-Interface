@@ -4,6 +4,6 @@
 #include "../include/threadSafeBuffer.h"
 #include "../include/sharedConfig.h"
 
-void thread_adbs(ThreadSafeBuffer& buffer, SharedConfig& config);
+void thread_adbs(ThreadSafeBuffer& buffer, SharedConfigDBS& config);
 
 #endif

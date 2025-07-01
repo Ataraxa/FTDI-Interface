@@ -3,8 +3,11 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
+
 #include "../include/ftd2xx.h"
 #include "../include/libmpsse_spi.h"
+#include "../include/fftw3.h"
 
 // ------------------------------------------------------------------
 //    Channel opening and setup
@@ -18,15 +21,14 @@ void configurePortMPSSE(FT_HANDLE *ftHandle, DWORD bytesToRead);
 // ------------------------------------------------------------------
 
 FT_STATUS readSample(FT_HANDLE ftHandle, uint16_t *data);
-void parseBuffer(BYTE* buffer, DWORD &bufferLoc,  
-    uint16_t waitTime1,  uint16_t waitTime2,  uint16_t waitTime3, 
-    uint16_t codeHigh, uint16_t codeLow);
+void parseBuffer(BYTE* buffer, DWORD& bufferLoc, std::array<int16_t,6>& cachedConfig);
 
 // ------------------------------------------------------------------
 //    Auxiliary Function
 // ------------------------------------------------------------------
 
 void volt2word(int amplitude, uint16_t& highWord, uint16_t& lowWord);
+double word2volt(int16_t code);
 
 // Pre-allocated transaction buffer (packed for USB alignment)
 #pragma pack(push, 1)

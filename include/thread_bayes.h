@@ -4,6 +4,6 @@
 #include "../include/threadSafeBuffer.h"
 #include "../include/sharedConfig.h"
 
-void thread_bayes(ThreadSafeBuffer& memoryBuffer, SharedConfig& config);
+void thread_bayes(ThreadSafeBuffer& memoryBuffer, SharedConfigDBS& config);
 
 #endif

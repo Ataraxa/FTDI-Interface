@@ -3,10 +3,13 @@
 #include <iostream>
 #include <cstdio>
 #include <cmath>
+#include <complex.h>
+#include <array>
 
 #include "../include/SPI_utils.h"
 #include "../include/ftd2xx.h"
 #include "../include/libmpsse_spi.h"
+#include "../include/fftw3.h"
 
 #define APP_CHECK_STATUS(exp) {if(exp!=FT_OK){printf("%s:%d:%s(): status(0x%x) \
 != FT_OK\n",__FILE__, __LINE__, __FUNCTION__,exp);exit(1);}else{;}};
@@ -130,43 +133,56 @@ FT_STATUS readSample(FT_HANDLE ftHandle, uint16_t* data)
     return fcStatus;
 }
 
-void parseBuffer(BYTE* buffer,
-    DWORD &bufferLoc, 
-    uint16_t waitTime1, 
-    uint16_t waitTime2, 
-    uint16_t waitTime3,
-    uint16_t codeHigh,
-    uint16_t codeLow)
+void parseBuffer(BYTE* buffer, DWORD& bufferLoc, std::array<int16_t,6>& cachedConfig)
+
     {
     bufferLoc = 0;
+
+    SWITCH_MASK = 0x20 // this is were the active Howland channels are defined!!!
+
+    // Create aliases for readability
+    int16_t& codeHigh  = cachedConfig[0];
+    int16_t& codeLow   = cachedConfig[1];
+    int16_t& highTime  = cachedConfig[2];
+    int16_t& interTime = cachedConfig[3];
+    int16_t& lowTime   = cachedConfig[4];
+    int16_t& frequency = cachedConfig[5];
+
+    // Channel A - Byte-low bank nomenclature
+    // DAC_CS (7) -- S&H (6) -- SW1 (5) -- SW2(4) -- N/A (3) -- N/A (2) -- MOSI (1) -- SCLK(0)
     
-    // High pulse
+    // Setup pins for start of overall simulation
+    //  - CS low
+    //  - SNH switch low
+    //  - Active Howland channels high, others low
     buffer[bufferLoc++] = 0x80;
-    buffer[bufferLoc++] = 0x48;
-    buffer[bufferLoc++] = 0xFB;
+    buffer[bufferLoc++] = 0x08 | SWITCH_MASK; // Value
+    buffer[bufferLoc++] = 0xFB; // Direction
     
+    // Write DAC word to generate anodic amplitude
     buffer[bufferLoc++] = 0x11;
     buffer[bufferLoc++] = 0x01;
     buffer[bufferLoc++] = 0x00;
     buffer[bufferLoc++] = (codeHigh >> 8 ) & 0xFF;
     buffer[bufferLoc++] = codeHigh & 0xFF;
     
+    // Pull CS high but keep switch as they are
     buffer[bufferLoc++] = 0x80;
-    buffer[bufferLoc++] = 0xC8;
+    buffer[bufferLoc++] = 0x88 | SWITCH_MASK;
     buffer[bufferLoc++] = 0xFB;
     
     // Waiting time
     buffer[bufferLoc++] = 0x11;
-    buffer[bufferLoc++] = (uint16_t)(waitTime1 - 1);
+    buffer[bufferLoc++] = (uint16_t)(highTime - 1);
     buffer[bufferLoc++] = 0x00;
-    for(int i=0;i<waitTime1;i++)
+    for(int i=0;i<highTime;i++)
     {
         buffer[bufferLoc++] = 0x00;
     }
     
-    // Inter pulse
+    // Inter pulse - 
     buffer[bufferLoc++] = 0x80;
-    buffer[bufferLoc++] = 0x48;
+    buffer[bufferLoc++] = 0x08 | SWITCH_MASK;
     buffer[bufferLoc++] = 0xFB;
     
     buffer[bufferLoc++] = 0x11;
@@ -176,21 +192,21 @@ void parseBuffer(BYTE* buffer,
     buffer[bufferLoc++] = 0x00;
     
     buffer[bufferLoc++] = 0x80;
-    buffer[bufferLoc++] = 0xC8;
+    buffer[bufferLoc++] = 0x88 | SWITCH_MASK;
     buffer[bufferLoc++] = 0xFB;
     
     // Waiting time
     buffer[bufferLoc++] = 0x11;
-    buffer[bufferLoc++] = (uint16_t)(waitTime2 - 1);
+    buffer[bufferLoc++] = (uint16_t)(interTime - 1);
     buffer[bufferLoc++] = 0x00;
-    for(int i=0;i<waitTime2;i++)
+    for(int i=0;i<interTime;i++)
     {
         buffer[bufferLoc++] = 0x00;
     }
     
     // Low pulse
     buffer[bufferLoc++] = 0x80;
-    buffer[bufferLoc++] = 0x48;
+    buffer[bufferLoc++] = 0x08 | SWITCH_MASK;
     buffer[bufferLoc++] = 0xFB;
     
     buffer[bufferLoc++] = 0x11;
@@ -200,21 +216,22 @@ void parseBuffer(BYTE* buffer,
     buffer[bufferLoc++] = codeLow & 0xFF;
     
     buffer[bufferLoc++] = 0x80;
-    buffer[bufferLoc++] = 0xC8;
+    buffer[bufferLoc++] = 0x88 | SWITCH_MASK;
     buffer[bufferLoc++] = 0xFB;
     
     // Waiting time
     buffer[bufferLoc++] = 0x11;
-    buffer[bufferLoc++] = (uint16_t)(waitTime3 - 1);
+    buffer[bufferLoc++] = (uint16_t)(lowTime - 1);
     buffer[bufferLoc++] = 0x00;
-    for(int i=0;i<waitTime3;i++)
+    for(int i=0;i<lowTime;i++)
     {
         buffer[bufferLoc++] = 0x00;
     }
     
     // Reset to null
+    // CS goes high, SNH switch goes high, all Howland switches go low
     buffer[bufferLoc++] = 0x80;
-    buffer[bufferLoc++] = 0x48;
+    buffer[bufferLoc++] = 0x08 | SWITCH_MASK;
     buffer[bufferLoc++] = 0xFB;
     
     buffer[bufferLoc++] = 0x11;
@@ -224,7 +241,7 @@ void parseBuffer(BYTE* buffer,
     buffer[bufferLoc++] = 0x00;
     
     buffer[bufferLoc++] = 0x80;
-    buffer[bufferLoc++] = 0xC8;
+    buffer[bufferLoc++] = 0xC8 ;
     buffer[bufferLoc++] = 0xFB;
 }
 
@@ -236,4 +253,9 @@ void volt2word(int amplitude, uint16_t& highWord, uint16_t& lowWord)
 {
     highWord = std::round((amplitude+Vref)/(2*Vref)*std::pow(2, 16));
     lowWord = std::round((-amplitude+Vref)/(2*Vref)*std::pow(2, 16));
+}
+
+double word2volt(int16_t code)
+{
+    return static_cast<double>(code) * Vref / 32768.0; // real part
 }

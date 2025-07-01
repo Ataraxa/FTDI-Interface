@@ -1,4 +1,5 @@
 #include "ThreadSafeBuffer.h"
+#include <cstdio>
 
 ThreadSafeBuffer::ThreadSafeBuffer() : stop_requested(false) {}
 
@@ -10,18 +11,21 @@ void ThreadSafeBuffer::addData(uint16_t data) {
     cv.notify_one();
 }
 
-std::vector<uint16_t> ThreadSafeBuffer::getData(size_t min_elements) {
+std::vector<uint16_t> ThreadSafeBuffer::getData() {
     std::unique_lock<std::mutex> lock(mtx);
-    cv.wait(lock, [this, min_elements] {
-        return buffer.size() >= min_elements || stop_requested;
-    });
 
     std::vector<uint16_t> data;
+
     while (!buffer.empty()) {
         data.push_back(buffer.front());
         buffer.pop();
     }
+
     return data;
+}
+
+bool ThreadSafeBuffer::isEmpty() {
+    return buffer.empty();
 }
 
 void ThreadSafeBuffer::requestStop() {

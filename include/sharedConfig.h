@@ -1,33 +1,25 @@
 #ifndef SHARED_INTS_NOTIFIER_H
 #define SHARED_INTS_NOTIFIER_H
 
-#include <vector>
+#include <array>
 #include <mutex>
-#include <condition_variable>
 #include <atomic>
 
-class SharedConfig {
+class SharedConfigDBS {
+    
 public:
-    explicit SharedConfig(size_t num_ints);
+    SharedConfigDBS();
     
-    // Thread-safe write
-    void updateInt(size_t index, int value);
-    
-    // Blocking wait-for-change
-    const std::vector<int>& waitForChange();
-    
-    // Non-blocking check
-    const std::vector<int>& getCurrent() const;
-    
-    void requestStop();
-    bool shouldStop() const;
+    void updateData(const std::array<int16_t, 6>& new_data);
+    bool tryUpdateCache(std::array<int16_t, 6>& cached_data, uint64_t& cached_version);
+    void toggleState(bool target_state);
+    bool state;
+    std::array<int16_t, 6> data = {0x0987, 0x0917, 100, 100, 100, 130}; // Initial values
 
 private:
-    mutable std::mutex mtx_;
-    std::condition_variable cv_;
-    std::vector<int> data_;
-    std::atomic<bool> data_changed_{false};
-    std::atomic<bool> stop_requested_{false};
+    std::mutex mtx_;
+    std::atomic<uint64_t> version_{0};
 };
+
 
 #endif
